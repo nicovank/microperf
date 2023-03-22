@@ -1,5 +1,9 @@
 # Bad Patterns
 
+
+> **Warning**
+> This is a work in progress.
+
 ## Build
 
 I recommend the following commands to build this project on Ubuntu.
