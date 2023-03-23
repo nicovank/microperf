@@ -6,16 +6,19 @@ import subprocess
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 LINUX_URL = "https://github.com/torvalds/linux.git"
-LINUX_TAG = "v6.2"
+LINUX_TAG = "v6.1"
 
 
 def main(args):
+    INSTALL_PATH = os.path.join(ROOT, "local")
+    VENDOR_PATH = os.path.join(ROOT, "vendor")
+
     if args.clean:
-        shutil.rmtree(os.path.join(ROOT, "bin"), ignore_errors=True)
-        shutil.rmtree(os.path.join(ROOT, "vendor"), ignore_errors=True)
+        shutil.rmtree(INSTALL_PATH, ignore_errors=True)
+        shutil.rmtree(VENDOR_PATH, ignore_errors=True)
         return
 
-    LINUX_ROOT = os.path.join(ROOT, "vendor", "linux")
+    LINUX_ROOT = os.path.join(VENDOR_PATH, "linux")
     PERF_ROOT = os.path.join(LINUX_ROOT, "tools", "perf")
 
     if not os.path.isdir(LINUX_ROOT):
@@ -36,17 +39,13 @@ def main(args):
     if not os.path.isfile(os.path.join(PERF_ROOT, "perf")):
         print("-- Building perf")
         subprocess.run(
-            ["make"],
+            ["make", f"prefix={INSTALL_PATH}", "install"],
             cwd=PERF_ROOT,
             stdout=(None if args.verbose else subprocess.DEVNULL),
             stderr=(None if args.verbose else subprocess.DEVNULL),
         ).check_returncode()
     else:
         print("-- Using existing perf copy")
-
-    if not os.path.isdir(os.path.join(ROOT, "bin")):
-        os.mkdir(os.path.join(ROOT, "bin"))
-    shutil.copy(os.path.join(PERF_ROOT, "perf"), os.path.join(ROOT, "bin", "bp-perf"))
 
 
 if __name__ == "__main__":
