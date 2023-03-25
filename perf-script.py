@@ -55,7 +55,7 @@ class CLI:
 
         stack = []
         srclines = []
-        for frame in event["callchain"]:
+        for frame in reversed(event["callchain"]):
             stack.append(frame.get("sym", {}).get("name", "[unknown]"))
             srcline = "[unknown]"
             if "sym_srcline" in frame:
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         "--table",
         type=str,
         default=None,
-        help="Insert entries into an existing table",
+        help="Insert entries into a specific table",
     )
 
     cli = CLI(parser.parse_args())
