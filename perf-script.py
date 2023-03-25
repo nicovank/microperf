@@ -27,8 +27,8 @@ class CLI:
             host=self.args.database_host,
             port=self.args.database_port,
             user="perf",
-            catalog=self.args.database_catalog,
-            schema=self.args.database_schema,
+            catalog="memory",
+            schema="default",
         )
 
         self.cursor = connection.cursor()
@@ -105,12 +105,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--database-port", metavar="PORT", type=int, default=8080)
     parser.add_argument("--database-user", metavar="USER", type=str, default="perf")
-    parser.add_argument(
-        "--database-catalog", metavar="CATALOG", type=str, default="memory"
-    )
-    parser.add_argument(
-        "--database-schema", metavar="SCHEMA", type=str, default="default"
-    )
     parser.add_argument(
         "-t",
         "--table",
