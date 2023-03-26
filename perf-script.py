@@ -40,7 +40,8 @@ class CLI:
                 comm VARCHAR,
                 stack ARRAY(VARCHAR),
                 srclines ARRAY(VARCHAR)
-            )"""
+            )
+            """
         )
         if self.cursor.fetchone()[0]:
             print(f"New table created: {self.args.table}")
@@ -70,7 +71,8 @@ class CLI:
                 '{event["comm"]}',
                 ARRAY{stack},
                 ARRAY{srclines}
-            )"""
+            )
+            """
         )
 
         self.count += 1
@@ -104,7 +106,6 @@ if __name__ == "__main__":
         "--database-host", metavar="HOST", type=str, default="localhost"
     )
     parser.add_argument("--database-port", metavar="PORT", type=int, default=8080)
-    parser.add_argument("--database-user", metavar="USER", type=str, default="perf")
     parser.add_argument(
         "-t",
         "--table",
