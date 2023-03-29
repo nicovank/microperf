@@ -7,6 +7,27 @@ from rich.table import Table
 console = Console()
 
 
+def display(data, title, total_samples):
+    table = Table(title=title, row_styles=["", "dim"])
+    table.add_column("Rank")
+    table.add_column("Samples")
+    table.add_column("Percentage")
+    table.add_column("Stack")
+    table.add_column("Source Line")
+
+    for i, row in enumerate(data):
+        table.add_row(
+            str(i + 1),
+            str(row[0]),
+            "{:.2f}".format(100 * row[0] / total_samples),
+            "\n".join(row[1]),
+            "\n".join(row[2]),
+        )
+
+    with console.pager():
+        console.print(table)
+
+
 def get_total_samples(cursor, args):
     cursor.execute(
         f"""
@@ -31,11 +52,41 @@ def main(args):
 
     total_samples = get_total_samples(cursor, args)
 
+    # Find copies
     cursor.execute(
         f"""
         SELECT
             COUNT(*) AS weight,
-            zip_with(stack, srclines, (x, y) -> (x || '@' || y))
+            stack,
+            srclines
+        FROM {args.table}
+        WHERE event = 'cycles'
+        AND comm LIKE '{args.comm}'
+        AND (
+            ANY_MATCH(stack, x -> x LIKE '%::operator=')
+            OR ANY_MATCH(
+                stack,
+                x -> REDUCE(
+                    SPLIT(x, '::'),
+                    ARRAY[null, null],
+                    (s, x) -> ARRAY[s[2], x],
+                    s -> s[1] = s[2])
+        ))
+        GROUP BY stack, srclines
+        ORDER BY weight DESC
+        LIMIT 10
+        """
+    )
+
+    display(cursor.fetchall(), "Cycles in constructors/assignments", total_samples)
+
+    # Tree-based containers
+    cursor.execute(
+        f"""
+        SELECT
+            COUNT(*) AS weight,
+            stack,
+            srclines
         FROM {args.table}
         WHERE event = 'cycles'
           AND comm LIKE '{args.comm}'
@@ -46,28 +97,7 @@ def main(args):
         """
     )
 
-    table = Table(title="Time spent in tree-based containers", row_styles=["", "dim"])
-    table.add_column("Rank")
-    table.add_column("Samples")
-    table.add_column("Percentage")
-    table.add_column("Stack")
-    table.add_column("Source Line")
-
-    for i, row in enumerate(cursor.fetchall()):
-        symbol_str = ""
-        srcline_str = ""
-        for frame in row[1]:
-            symbol, srcline = frame.split("@")
-            symbol_str += symbol + "\n"
-            srcline_str += srcline + "\n"
-        table.add_row(
-            str(i + 1),
-            str(row[0]),
-            "{:.2f}".format(100 * row[0] / total_samples),
-            symbol_str.rstrip(),
-            srcline_str.rstrip(),
-        )
-    console.print(table)
+    display(cursor.fetchall(), "Cycles in tree-based containers", total_samples)
 
     cursor.close()
 
