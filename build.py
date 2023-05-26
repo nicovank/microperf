@@ -5,8 +5,8 @@ import subprocess
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
-LINUX_URL = "https://github.com/torvalds/linux.git"
-LINUX_TAG = "v6.1"
+LINUX_URL = "https://github.com/nicovank/linux.git"
+LINUX_TAG = "personal"
 
 
 def main(args):
