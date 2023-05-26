@@ -61,8 +61,8 @@ def main(args):
             srclines
         FROM {args.table}
         WHERE event = 'cycles'
-        AND comm LIKE '{args.comm}'
-        AND (
+          AND comm LIKE '{args.comm}'
+          AND (
             ANY_MATCH(stack, x -> x LIKE '%::operator=')
             OR ANY_MATCH(
                 stack,
