@@ -27,6 +27,7 @@ They may be named differently on other distributions.
         liblzma-dev           \
         libnuma-dev           \
         libperl-dev           \
+        libpfm4-dev           \
         libslang2-dev         \
         libssl-dev            \
         libunwind-dev         \
