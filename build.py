@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import argparse
 import os
 import shutil
@@ -50,7 +52,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="python3 build.py", description="Bad Patterns Build Script"
+        prog="python3 build.py", description="uperf convenience build script"
     )
 
     parser.add_argument("--clean", action="store_true", help="Clean up all files")
