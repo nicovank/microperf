@@ -38,7 +38,7 @@ def main(args):
             stderr=(None if args.verbose else subprocess.DEVNULL),
         ).check_returncode()
 
-    if not os.path.isfile(os.path.join(PERF_ROOT, "perf")):
+    if not os.path.isfile(os.path.join(INSTALL_PATH, "bin", "perf")):
         print("-- Building perf")
         subprocess.run(
             ["make", f"prefix={INSTALL_PATH}", "install"],
