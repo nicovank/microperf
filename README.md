@@ -1,4 +1,4 @@
-# Bad Patterns
+# MicroPerf
 
 > **Warning**
 > This is a work in progress.
@@ -39,7 +39,7 @@ They may be named differently on other distributions.
         python3-setuptools    \
         systemtap-sdt-dev
 
-[perf-tools] python3 build.py
+[microperf] python3 build.py
 ```
 
 ## Presto
