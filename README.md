@@ -49,6 +49,6 @@ It differs slightly from the official image, for example removing the `-Xmx1G`
 JVM flag to allow processing of larger profiles.
 
 ```
-[perf-tools] docker image build presto --compress --tag perf-presto
-[perf-tools] docker run -d -p 8080:8080 --name perf-presto perf-presto
+% docker image build microperf/presto --compress --tag perf-presto
+% docker run -d -p 8080:8080 --name perf-presto perf-presto
 ```
