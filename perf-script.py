@@ -24,8 +24,8 @@ class CLI:
 
     def trace_begin(self):
         connection = prestodb.dbapi.connect(
-            host=self.args.database_host,
-            port=self.args.database_port,
+            host=self.args.host,
+            port=self.args.port,
             user="perf",
             catalog="memory",
             schema="default",
@@ -102,10 +102,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--database-host", metavar="HOST", type=str, default="localhost"
-    )
-    parser.add_argument("--database-port", metavar="PORT", type=int, default=8080)
+    parser.add_argument("--host", metavar="HOST", type=str, default="localhost")
+    parser.add_argument("--port", metavar="PORT", type=int, default=8080)
     parser.add_argument(
         "-t",
         "--table",
