@@ -6,7 +6,7 @@ import sys
 import prestodb
 
 
-# perf script -s perf-script.py -F+srcline --full-source-path --strip-cxx-templates --no-inline
+# perf script -s perf-script.py -F+srcline --full-source-path --strip-cxx-templates
 
 BATCH_SIZE = 50
 
