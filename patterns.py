@@ -67,7 +67,7 @@ def main(args):
             OR ANY_MATCH(
                 stack,
                 x -> REDUCE(
-                    SPLIT(x, '::'),
+                    SPLIT(REVERSE(SPLIT_PART(REVERSE(x), '(', 2)), '::'),
                     ARRAY[null, null],
                     (s, x) -> ARRAY[s[2], x],
                     s -> s[1] = s[2])
