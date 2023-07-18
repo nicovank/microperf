@@ -26,11 +26,15 @@ def main(args):
 
     matchers = []
     for any in args.any:
-        matchers.append(f"""ANY_MATCH(stack, x -> {" OR ".join([f"x LIKE '%{a}%'" for a in any])})""")
+        matchers.append(
+            f"""ANY_MATCH(stack, x -> {" OR ".join([f"x LIKE '%{a}%'" for a in any])})"""
+        )
     for all in args.all:
         matchers.append(f"""ANY_MATCH(stack, x -> x LIKE '%{all}%')""")
     if args.none:
-        matchers.append(f"""NONE_MATCH(stack, x -> {" OR ".join([f"x LIKE '%{n}%'" for n in args.none])})""")
+        matchers.append(
+            f"""NONE_MATCH(stack, x -> {" OR ".join([f"x LIKE '%{n}%'" for n in args.none])})"""
+        )
 
     print(f"Total samples: {denominator}")
     if matchers:
@@ -46,6 +50,7 @@ def main(args):
         print(f"Total matched samples: {nominator}")
 
         print(f"Ratio: {nominator / denominator * 100:.2f}%")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

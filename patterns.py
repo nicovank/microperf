@@ -35,16 +35,15 @@ def get_total_samples(cursor, args):
         f"""
         SELECT COUNT(*)
         FROM {args.table}
-        WHERE event = 'cycles'
-          AND comm LIKE '{args.comm}'"""
+        WHERE event = 'cycles'"""
     )
     return cursor.fetchone()[0]
 
 
 def main(args):
     connection = prestodb.dbapi.connect(
-        host=args.database_host,
-        port=args.database_port,
+        host=args.host,
+        port=args.port,
         user="perf",
         catalog="memory",
         schema="default",
@@ -63,7 +62,6 @@ def main(args):
             srclines
         FROM {args.table}
         WHERE event = 'cycles'
-          AND comm LIKE '{args.comm}'
           AND (
             ANY_MATCH(stack, x -> x LIKE '%::operator=')
             OR ANY_MATCH(
@@ -91,7 +89,6 @@ def main(args):
             srclines
         FROM {args.table}
         WHERE event = 'cycles'
-          AND comm LIKE '{args.comm}'
           AND ANY_MATCH(stack, x -> x LIKE 'std::_Rb_tree%')
         GROUP BY stack, srclines
         ORDER BY weight DESC
@@ -106,15 +103,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--database-host", metavar="HOST", type=str, default="localhost"
-    )
-    parser.add_argument("--database-port", metavar="PORT", type=int, default=8080)
+    parser.add_argument("--host", type=str, default="localhost")
+    parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("-t", "--table", required=True, help="Name of the table")
-    parser.add_argument(
-        "--comm",
-        default="%",
-        help="Filter by command. _ can be used to represent any single character, %% zero, one, or multiple characters",
-    )
 
     main(parser.parse_args())
