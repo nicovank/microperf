@@ -53,43 +53,31 @@ def main(args):
 
     total_samples = get_total_samples(cursor, args)
 
-    # Find copies
-    cursor.execute(
-        f"""
-        SELECT
-            COUNT(*) AS weight,
-            stack,
-            srclines
-        FROM {args.table}
-        WHERE event = 'cycles'
-          AND (
-            ANY_MATCH(stack, x -> x LIKE '%::operator=')
-            OR ANY_MATCH(
-                stack,
-                x -> REDUCE(
-                    SPLIT(REVERSE(SPLIT_PART(REVERSE(x), '(', 2)), '::'),
-                    ARRAY[null, null],
-                    (s, x) -> ARRAY[s[2], x],
-                    s -> s[1] = s[2])
-        ))
-        GROUP BY stack, srclines
-        ORDER BY weight DESC
-        LIMIT 10
-        """
-    )
-
-    display(cursor.fetchall(), "Cycles in constructors/assignments", total_samples)
-
     # Tree-based containers
     cursor.execute(
         f"""
+        WITH TEMPORARY1 AS (
+            SELECT
+                stack,
+                srclines,
+                FIND_FIRST_INDEX(
+                    stack,
+                    x -> x LIKE 'std::_Rb_tree%') AS index
+            FROM {args.table}
+            WHERE event = 'cycles'
+              AND CARDINALITY(stack) > 0
+        ), TEMPORARY2 AS (
+            SELECT
+                SLICE(stack, 1, index) AS stack,
+                SLICE(srclines, 1, index) AS srclines
+            FROM TEMPORARY1
+            WHERE index IS NOT NULL
+        )
         SELECT
             COUNT(*) AS weight,
             stack,
             srclines
-        FROM {args.table}
-        WHERE event = 'cycles'
-          AND ANY_MATCH(stack, x -> x LIKE 'std::_Rb_tree%')
+        FROM TEMPORARY2
         GROUP BY stack, srclines
         ORDER BY weight DESC
         LIMIT 10
