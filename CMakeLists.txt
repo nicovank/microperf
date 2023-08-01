@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(prof)
+project(microperf)
 
 include(FetchContent)
 include(CheckIPOSupported)
@@ -25,7 +25,7 @@ message(STATUS "Downloading and configuring {fmt}")
 FetchContent_MakeAvailable(fmt)
 
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
-add_executable(prof ${SOURCES})
-target_compile_options(prof PRIVATE -Wall -Wextra -Wpedantic -Werror)
-target_include_directories(prof PRIVATE include)
-target_link_libraries(prof PRIVATE fmt)
+add_executable(uperf ${SOURCES})
+target_compile_options(uperf PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_include_directories(uperf PRIVATE include)
+target_link_libraries(uperf PRIVATE fmt)
