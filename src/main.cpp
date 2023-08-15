@@ -47,18 +47,19 @@ void printHelp() {
 }
 
 boost::program_options::variables_map parse_args(int argc, char** argv) {
-    std::optional<std::pair<int, char**>> command;
+    boost::program_options::variables_map vm;
+
     for (int i = 0; i < argc; ++i) {
         if (strncmp(argv[i], "---", 3) == 0) {
             if (i + 1 != argc) {
-                command = std::make_pair(argc - i - 1, argv + i + 1);
+                vm.emplace("command",
+                           boost::program_options::variable_value(std::span(argv + i + 1, argc - i - 1), false));
             }
             argc = i;
             break;
         }
     }
 
-    boost::program_options::variables_map vm;
     try {
         boost::program_options::store(boost::program_options::parse_command_line(argc, argv, options), vm);
 
@@ -67,7 +68,7 @@ boost::program_options::variables_map parse_args(int argc, char** argv) {
             exit(EXIT_SUCCESS);
         }
 
-        if (!(vm.contains("pid") ^ command.has_value())) {
+        if (!(vm.contains("pid") ^ vm.contains("command"))) {
             fmt::println("Error: A PID or a command must be specified, but not both.");
             printHelp();
             exit(EXIT_FAILURE);
