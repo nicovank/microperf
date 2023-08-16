@@ -1,3 +1,4 @@
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -52,8 +53,7 @@ boost::program_options::variables_map parse_args(int argc, char** argv) {
     for (int i = 0; i < argc; ++i) {
         if (strncmp(argv[i], "---", 3) == 0) {
             if (i + 1 != argc) {
-                vm.emplace("command",
-                           boost::program_options::variable_value(std::span(argv + i + 1, argc - i - 1), false));
+                vm.emplace("command", boost::program_options::variable_value(argv + i + 1, false));
             }
             argc = i;
             break;
@@ -87,6 +87,25 @@ boost::program_options::variables_map parse_args(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     [[maybe_unused]] auto vm = parse_args(argc, argv);
+
+    const auto it = vm.find("command");
+    if (it != vm.end()) {
+        const auto pid = fork();
+        if (pid == -1) {
+            fmt::println("Error (fork): {}", strerror(errno));
+            exit(EXIT_FAILURE);
+        } else if (pid == 0) {
+            const auto command = it->second.as<char**>();
+            execvp(command[0], command);
+            fmt::println(stderr, "Error (exec): {}\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        vm.erase(it);
+        vm.emplace("pid", boost::program_options::variable_value(pid, false));
+    }
+
+    // We have a PID.
 
     return EXIT_SUCCESS;
 }
