@@ -35,6 +35,8 @@ const auto options = [] {
     // clang-format off
     description.add_options()
         ("pid,p", boost::program_options::value<pid_t>(), "Profile an existing process. This option should be present when the command is ommitted and vice-versa.")
+        // TODO: Specify if this behavior also covers pre-existing children in the case of an existing process.
+        ("inherit", boost::program_options::value<bool>()->default_value(true), "Start profiling child processes as they spawn.")
         ("help,h", "Produce a help message and exit.");
     // clang-format on
 
