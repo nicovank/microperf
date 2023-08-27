@@ -6,12 +6,23 @@
 #include <sstream>
 #include <string>
 
+#include <linux/hw_breakpoint.h>
+#include <linux/perf_event.h>
+#include <poll.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/poll.h>
+#include <sys/syscall.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <boost/program_options.hpp>
 
 #include <fmt/core.h>
 #include <fmt/ranges.h>
+
+#define RING_BUFFER_SIZE 1 // A power of 2.
 
 template <>
 struct fmt::formatter<boost::program_options::options_description> {
@@ -85,6 +96,10 @@ boost::program_options::variables_map parse_args(int argc, char** argv) {
 
     return vm;
 }
+
+int perf_event_open(struct perf_event_attr* attr, pid_t pid, int cpu, int group_fd, unsigned long flags) {
+    return syscall(SYS_perf_event_open, attr, pid, cpu, group_fd, flags);
+}
 } // namespace
 
 int main(int argc, char** argv) {
@@ -107,7 +122,76 @@ int main(int argc, char** argv) {
         vm.emplace("pid", boost::program_options::variable_value(pid, false));
     }
 
-    // We have a PID.
+    perf_event_attr attr;
+    memset(&attr, 0, sizeof(perf_event_attr));
+    attr.size = sizeof(perf_event_attr);
+
+    attr.type = PERF_TYPE_HARDWARE;
+    attr.config = PERF_COUNT_HW_CPU_CYCLES;
+    attr.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME | PERF_SAMPLE_CALLCHAIN;
+    attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
+    attr.disabled = 0; // TODO: Maybe start disabled.
+
+    // We call perf_event_open separately for each child process.
+    attr.inherit = 0;
+
+    // We only support period profiling.
+    // For now, it is set to every 1e9 cycles, or twice a second on a 2GHz chip.
+    attr.freq = 0;
+    attr.sample_period = 1e9;
+
+    // Generate MMAP records.
+    attr.mmap = 1;
+    attr.mmap_data = 0;
+    attr.mmap2 = 1;
+
+    // Generate FORK/EXIT records.
+    attr.task = 1;
+
+    // TODO: We may not care for this.
+    attr.comm = 1;
+
+    // We lower this progressively to obtain the best possible precision.
+    attr.precise_ip = 3;
+
+    // TODO: We may possibly want this.
+    attr.build_id = 0;
+
+    // Wake up every N events, matching the size of the ring buffer.
+    attr.watermark = 0;
+    attr.wakeup_events = RING_BUFFER_SIZE;
+    attr.write_backward = 1;
+
+    auto fd = perf_event_open(&attr, vm.at("pid").as<pid_t>(), -1, -1, 0);
+    while (fd == -1 && attr.precise_ip > 0) {
+        fmt::println(stderr, "Error (perf_event_open): {}\n", strerror(errno));
+        fmt::println(stderr, "Error (perf_event_open): Lowering precise_ip to {}...", (int) attr.precise_ip - 1);
+        --attr.precise_ip;
+        fd = perf_event_open(&attr, vm.at("pid").as<pid_t>(), -1, -1, 0);
+    }
+
+    if (fd == -1) {
+        fmt::println("Error (perf_event_open): {}", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    fmt::println("It worked!");
+    void* buffer = mmap(nullptr, 1 + RING_BUFFER_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+    if (buffer == MAP_FAILED) {
+        fmt::println("Error (mmap): {}", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    const perf_event_mmap_page& header = *static_cast<perf_event_mmap_page*>(buffer);
+
+    auto pfd = pollfd{.fd = fd, .events = POLLIN, .revents = 0};
+    poll(&pfd, 1, -1);
+
+    fmt::println("header.version = {}", header.version);
+    fmt::println("header.time_enabled = {}", header.time_enabled);
+    fmt::println("header.time_running = {}", header.time_running);
+
+    waitpid(vm.at("pid").as<pid_t>(), nullptr, 0);
 
     return EXIT_SUCCESS;
 }
