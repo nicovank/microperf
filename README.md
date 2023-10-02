@@ -39,7 +39,7 @@ They may be named differently on other distributions.
         python3-setuptools    \
         systemtap-sdt-dev
 
-% python3 microperf/build.py
+% python3 microperf/build-perf.py
 ```
 
 ## Presto
