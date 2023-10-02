@@ -12,7 +12,7 @@ They may be named differently on other distributions.
 ```
 % sudo apt update
 
-% sudo apt install -y       \
+% sudo apt install -y         \
         binutils-dev          \
         bison                 \
         flex                  \
