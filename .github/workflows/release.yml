@@ -20,13 +20,13 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Check version bump
-        run: python3 check-version-bump.py
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build packaging requests
+
+      - name: Check version bump
+        run: python3 check-version-bump.py
 
       - name: Build package
         run: python -m build
