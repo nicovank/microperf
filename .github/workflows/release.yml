@@ -32,9 +32,7 @@ jobs:
         run: python -m build
 
       - name: Publish to crates.io
-        run: |
-          cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
-          cargo publish --allow-dirty
+        run: cargo publish --allow-dirty
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
