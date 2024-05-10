@@ -1,6 +1,6 @@
 [package]
 name = "microperf"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Nicolas van Kempen <nvankemp@gmail.com>"]
 description = "A small tool using perf to provide more performance insights."
 readme = "README.md"
