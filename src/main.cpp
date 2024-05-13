@@ -156,9 +156,8 @@ std::size_t offset_for_ips(const perf_event_header* header, std::uint64_t sample
             offset += sizeof(std::uint64_t);
             offset += ((read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) ? sizeof(std::uint64_t) : 0);
             offset += ((read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) ? sizeof(std::uint64_t) : 0);
-            offset += nr
-                      * (sizeof(std::uint64_t) + ((read_format & PERF_FORMAT_ID) ? sizeof(std::uint64_t) : 0)
-                         + ((read_format & PERF_FORMAT_LOST) ? sizeof(std::uint64_t) : 0));
+            offset += nr * sizeof(std::uint64_t)
+                      * (1 + ((read_format & PERF_FORMAT_ID) ? 1 : 0) + ((read_format & PERF_FORMAT_LOST) ? 1 : 0));
         } else {
             offset += sizeof(std::uint64_t);
             offset += ((read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) ? sizeof(std::uint64_t) : 0);
