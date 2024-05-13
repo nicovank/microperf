@@ -44,14 +44,14 @@ namespace perf::sample {
 std::uint64_t get_sample_id(const perf_event_header* header, std::uint64_t sample_type) {
     assert(sample_type & PERF_SAMPLE_IDENTIFIER);
     std::size_t offset = sizeof(perf_event_header);
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint64_t get_ip(const perf_event_header* header, std::uint64_t sample_type) {
     assert(sample_type & PERF_SAMPLE_IP);
     std::size_t offset = sizeof(perf_event_header);
     offset += (sample_type & PERF_SAMPLE_IDENTIFIER) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint32_t get_pid(const perf_event_header* header, std::uint64_t sample_type) {
@@ -59,7 +59,7 @@ std::uint32_t get_pid(const perf_event_header* header, std::uint64_t sample_type
     std::size_t offset = sizeof(perf_event_header);
     offset += (sample_type & PERF_SAMPLE_IDENTIFIER) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_IP) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint32_t*>(header + offset);
+    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint32_t get_tid(const perf_event_header* header, std::uint64_t sample_type) {
@@ -67,7 +67,7 @@ std::uint32_t get_tid(const perf_event_header* header, std::uint64_t sample_type
     std::size_t offset = sizeof(perf_event_header);
     offset += (sample_type & PERF_SAMPLE_IDENTIFIER) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_IP) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint32_t*>(header + offset + sizeof(std::uint32_t));
+    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint32_t));
 }
 
 std::uint64_t get_time(const perf_event_header* header, std::uint64_t sample_type) {
@@ -76,7 +76,7 @@ std::uint64_t get_time(const perf_event_header* header, std::uint64_t sample_typ
     offset += (sample_type & PERF_SAMPLE_IDENTIFIER) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_IP) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_TID) ? 2 * sizeof(std::uint32_t) : 0;
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint64_t get_addr(const perf_event_header* header, std::uint64_t sample_type) {
@@ -86,7 +86,7 @@ std::uint64_t get_addr(const perf_event_header* header, std::uint64_t sample_typ
     offset += (sample_type & PERF_SAMPLE_IP) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_TID) ? 2 * sizeof(std::uint32_t) : 0;
     offset += (sample_type & PERF_SAMPLE_TIME) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint64_t get_id(const perf_event_header* header, std::uint64_t sample_type) {
@@ -97,7 +97,7 @@ std::uint64_t get_id(const perf_event_header* header, std::uint64_t sample_type)
     offset += (sample_type & PERF_SAMPLE_TID) ? 2 * sizeof(std::uint32_t) : 0;
     offset += (sample_type & PERF_SAMPLE_TIME) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_ADDR) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint64_t get_stream_id(const perf_event_header* header, std::uint64_t sample_type) {
@@ -109,7 +109,7 @@ std::uint64_t get_stream_id(const perf_event_header* header, std::uint64_t sampl
     offset += (sample_type & PERF_SAMPLE_TIME) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_ADDR) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_ID) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint32_t get_cpu(const perf_event_header* header, std::uint64_t sample_type) {
@@ -122,7 +122,7 @@ std::uint32_t get_cpu(const perf_event_header* header, std::uint64_t sample_type
     offset += (sample_type & PERF_SAMPLE_ADDR) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_ID) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_STREAM_ID) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint32_t*>(header + offset);
+    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::uint32_t get_res(const perf_event_header* header, std::uint64_t sample_type) {
@@ -135,7 +135,7 @@ std::uint32_t get_res(const perf_event_header* header, std::uint64_t sample_type
     offset += (sample_type & PERF_SAMPLE_ADDR) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_ID) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_STREAM_ID) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint32_t*>(header + offset + sizeof(std::uint32_t));
+    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint32_t));
 }
 
 std::uint64_t get_period(const perf_event_header* header, std::uint64_t sample_type) {
@@ -149,7 +149,7 @@ std::uint64_t get_period(const perf_event_header* header, std::uint64_t sample_t
     offset += (sample_type & PERF_SAMPLE_ID) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_STREAM_ID) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_CPU) ? 2 * sizeof(std::uint32_t) : 0;
-    return *reinterpret_cast<const std::uint64_t*>(header + offset);
+    return *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 struct read_format {
@@ -173,7 +173,7 @@ const read_format& get_v(const perf_event_header* header, std::uint64_t sample_t
     offset += (sample_type & PERF_SAMPLE_STREAM_ID) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_CPU) ? 2 * sizeof(std::uint32_t) : 0;
     offset += (sample_type & PERF_SAMPLE_PERIOD) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const read_format*>(header + offset);
+    return *reinterpret_cast<const read_format*>(reinterpret_cast<uintptr_t>(header) + offset);
 }
 
 std::span<const std::uint64_t> get_ips(const perf_event_header* header, std::uint64_t sample_type) {
@@ -190,8 +190,8 @@ std::span<const std::uint64_t> get_ips(const perf_event_header* header, std::uin
     offset += (sample_type & PERF_SAMPLE_CPU) ? 2 * sizeof(std::uint32_t) : 0;
     offset += (sample_type & PERF_SAMPLE_PERIOD) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_READ) ? sizeof(read_format) : 0;
-    const auto nr = *reinterpret_cast<const std::uint64_t*>(header + offset);
-    return std::span(reinterpret_cast<const std::uint64_t*>(header + offset + sizeof(std::uint64_t)), nr);
+    const auto nr = *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
+    return std::span(reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint64_t)), nr);
 }
 } // namespace perf::sample
 
