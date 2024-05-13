@@ -32,7 +32,6 @@ int perf_event_open_fallback_precise_ip(perf_event_attr* attr, pid_t pid, int cp
         attr->precise_ip = precise_ip;
         const auto fd = syscall(SYS_perf_event_open, attr, pid, cpu, group_fd, flags);
         if (fd != -1) {
-            fmt::println("precise_ip: {}", precise_ip);
             return fd;
         }
     }
@@ -209,9 +208,9 @@ int main(int argc, char** argv) {
     attr.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME | PERF_SAMPLE_WEIGHT | PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     // attr.inherit = 1;
-    // attr.mmap = 1;
-    // attr.task = 1;
-    // attr.mmap2 = 1;
+    attr.mmap = 1;
+    attr.task = 1;
+    attr.mmap2 = 1;
     // TODO use_clockid.
     attr.wakeup_events = 1 << N;
 
@@ -234,18 +233,8 @@ int main(int argc, char** argv) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
-    while (true) {
-        {
-            const auto status = waitpid(pid, nullptr, WNOHANG);
-            if (status == -1) {
-                fmt::println(stderr, "failed waitpid: {}", std::strerror(errno));
-                std::exit(EXIT_FAILURE);
-            }
-            if (status != 0) {
-                break;
-            }
-        }
-
+    bool running = true;
+    while (running) {
         const auto status = poll(fds.data(), fds.size(), 1000);
         if (status == -1) {
             fmt::println(stderr, "failed poll: {}", std::strerror(errno));
@@ -263,12 +252,23 @@ int main(int argc, char** argv) {
                 const auto* record
                     = reinterpret_cast<perf_event_header*>(reinterpret_cast<uintptr_t>(buffer) + metadata->data_offset
                                                            + (metadata->data_tail % ((1 << N) * PAGE_SIZE)));
+
+                running = (record->type != PERF_RECORD_EXIT)
+                          || (pid
+                              != *reinterpret_cast<std::uint32_t*>(reinterpret_cast<uintptr_t>(record)
+                                                                   + sizeof(perf_event_header)));
+
+                if (record->type == PERF_RECORD_SAMPLE) {
+                    // fmt::println("{}, {}", record->type, record->size);
+                    // fmt::println("{} {} {} {}", perf::sample::get_ip(record, attr.sample_type),
+                    //              perf::sample::get_pid(record, attr.sample_type),
+                    //              perf::sample::get_tid(record, attr.sample_type),
+                    //              perf::sample::get_ips(record, attr.sample_type, attr.read_format));
+                } else {
+                    fmt::println("{}, {}", record->type, record->size);
+                }
+
                 metadata->data_tail += record->size;
-                fmt::println("{}, {}", record->type, record->size);
-                fmt::println("{} {} {} {}", perf::sample::get_ip(record, attr.sample_type),
-                             perf::sample::get_pid(record, attr.sample_type),
-                             perf::sample::get_tid(record, attr.sample_type),
-                             perf::sample::get_ips(record, attr.sample_type, attr.read_format));
                 ++n;
             }
             metadata->data_tail = head;
