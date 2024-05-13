@@ -95,14 +95,15 @@ int main(int argc, char** argv) {
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
     while (true) {
-        siginfo_t infop;
-        infop.si_pid = 0;
-        if (waitid(P_PID, pid, &infop, WEXITED | WNOHANG | WNOWAIT) == -1) {
-            fmt::println(stderr, "failed waitpid: {}", std::strerror(errno));
-            std::exit(EXIT_FAILURE);
-        }
-        if (infop.si_pid != 0) {
-            break;
+        {
+            const auto status = waitpid(pid, nullptr, WNOHANG);
+            if (status == -1) {
+                fmt::println(stderr, "failed waitpid: {}", std::strerror(errno));
+                std::exit(EXIT_FAILURE);
+            }
+            if (status != 0) {
+                break;
+            }
         }
 
         const auto status = poll(fds.data(), fds.size(), 1000);
