@@ -67,7 +67,8 @@ std::uint32_t get_tid(const perf_event_header* header, std::uint64_t sample_type
     std::size_t offset = sizeof(perf_event_header);
     offset += (sample_type & PERF_SAMPLE_IDENTIFIER) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_IP) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint32_t));
+    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset
+                                                   + sizeof(std::uint32_t));
 }
 
 std::uint64_t get_time(const perf_event_header* header, std::uint64_t sample_type) {
@@ -135,7 +136,8 @@ std::uint32_t get_res(const perf_event_header* header, std::uint64_t sample_type
     offset += (sample_type & PERF_SAMPLE_ADDR) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_ID) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_STREAM_ID) ? sizeof(std::uint64_t) : 0;
-    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint32_t));
+    return *reinterpret_cast<const std::uint32_t*>(reinterpret_cast<uintptr_t>(header) + offset
+                                                   + sizeof(std::uint32_t));
 }
 
 std::uint64_t get_period(const perf_event_header* header, std::uint64_t sample_type) {
@@ -191,7 +193,9 @@ std::span<const std::uint64_t> get_ips(const perf_event_header* header, std::uin
     offset += (sample_type & PERF_SAMPLE_PERIOD) ? sizeof(std::uint64_t) : 0;
     offset += (sample_type & PERF_SAMPLE_READ) ? sizeof(read_format) : 0;
     const auto nr = *reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset);
-    return std::span(reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint64_t)), nr);
+    return std::span(
+        reinterpret_cast<const std::uint64_t*>(reinterpret_cast<uintptr_t>(header) + offset + sizeof(std::uint64_t)),
+        nr);
 }
 } // namespace perf::sample
 
