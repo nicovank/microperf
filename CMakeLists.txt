@@ -14,5 +14,8 @@ FetchContent_MakeAvailable(fmt)
 
 add_executable(uperf src/main.cpp)
 target_link_libraries(uperf PRIVATE fmt::fmt)
+set_property(TARGET uperf PROPERTY CXX_STANDARD 20)
+set_property(TARGET uperf PROPERTY CXX_STANDARD_REQUIRED ON)
+
 
 add_executable(benchmark src/benchmark.cpp)
