@@ -269,7 +269,7 @@ bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, 
                 auto found = false;
                 for (const auto& map : maps | std::views::reverse) {
                     if (map.begin <= ip && ip < map.end) {
-                        fmt::println("{:x} {}", ip - map.begin + map.offset, map.filename);
+                        fmt::println("0x{:x} {}", ip - map.begin + map.offset, map.filename);
                         found = true;
                         break;
                     }
