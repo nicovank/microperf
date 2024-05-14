@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <fstream>
 #include <ranges>
 #include <span>
@@ -25,6 +26,7 @@
 
 #include <fmt/core.h>
 #include <fmt/ranges.h>
+#include <subprocess.hpp>
 
 #define PAGE_SIZE 4096
 #define N 3 // We need to mmap 2^N+1 pages with perf_event_open.
@@ -205,6 +207,7 @@ struct MapInfo {
     std::size_t end;
     std::size_t offset;
     std::string filename;
+    bool exists;
 };
 
 std::deque<MapInfo> getMaps(pid_t pid) {
@@ -229,7 +232,8 @@ std::deque<MapInfo> getMaps(pid_t pid) {
         maps.push_back(MapInfo{.begin = hex_to_size_t(v.at(0).substr(0, i)),
                                .end = hex_to_size_t(v.at(0).substr(i + 1)),
                                .offset = hex_to_size_t(v.at(2)),
-                               .filename = std::string(v.at(5))});
+                               .filename = std::string(v.at(5)),
+                               .exists = std::filesystem::exists(v.at(5))});
     }
     return maps;
 }
@@ -254,7 +258,13 @@ bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, 
             auto found = false;
             for (const auto& map : maps | std::views::reverse) {
                 if (map.begin <= ip && ip < map.end) {
-                    fmt::println("{:x} {}", ip - map.begin + map.offset, map.filename);
+                    if (!map.exists) {
+                        break;
+                    }
+
+                    const auto buffer = subprocess::check_output(
+                        {"llvm-addr2line-17", "-e", map.filename, fmt::format("{:x}", ip - map.begin + map.offset)});
+                    fmt::println("{}", std::string_view(buffer.buf.data(), buffer.length));
                     found = true;
                     break;
                 }
