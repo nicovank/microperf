@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <deque>
 #include <fstream>
 #include <span>
 #include <unordered_map>
@@ -231,6 +232,40 @@ std::vector<std::string_view> split(const std::string& s) {
     return parts;
 }
 
+struct MapInfo {
+    std::size_t begin;
+    std::size_t end;
+    std::size_t offset;
+    std::string filename;
+};
+
+std::vector<MapInfo> getMaps(pid_t pid) {
+    std::vector<MapInfo> maps;
+    std::ifstream file(fmt::format("/proc/{}/maps", pid));
+    std::string line;
+    while (std::getline(file, line)) {
+        const auto v = split(line);
+        if (v.at(1).at(2) != 'x' || v.size() != 6) {
+            continue;
+        }
+        const auto i = v.at(0).find('-');
+        assert(i != v.at(0).npos);
+
+        const auto hex_to_size_t = [](const std::string_view& s) {
+            std::size_t x;
+            const auto [ptr, ec] = std::from_chars(s.begin(), s.end(), x, 16);
+            assert(ptr == s.end() && ec == std::errc());
+            return x;
+        };
+
+        maps.push_back(MapInfo{.begin = hex_to_size_t(v.at(0).substr(0, i)),
+                               .end = hex_to_size_t(v.at(0).substr(i + 1)),
+                               .offset = hex_to_size_t(v.at(2)),
+                               .filename = std::string(v.at(5))});
+    }
+    return maps;
+}
+
 int main(int argc, char** argv) {
     // FIXME: For now, no options other than the command are passed.
     // FIXME: In the future, we should parse arguments and maybe isolate command with `---`.
@@ -284,30 +319,6 @@ int main(int argc, char** argv) {
 
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
-
-    std::ifstream maps(fmt::format("/proc/{}/maps", pid));
-    std::string line;
-    while (std::getline(maps, line)) {
-        const auto v = split(line);
-        if (v.at(1).at(2) != 'x' || v.size() != 6) {
-            continue;
-        }
-        const auto i = v.at(0).find('-');
-        assert(i != v.at(0).npos);
-
-        const auto hex_to_size_t = [](const std::string_view& s) {
-            std::size_t x;
-            const auto [ptr, ec] = std::from_chars(s.begin(), s.end(), x, 16);
-            assert(ptr == s.end() && ec == std::errc());
-            return x;
-        };
-
-        const auto begin = hex_to_size_t(v.at(0).substr(0, i));
-        const auto end = hex_to_size_t(v.at(0).substr(i + 1));
-        const auto offset = hex_to_size_t(v.at(2));
-        const auto filename = v.at(5);
-        fmt::println("{} {} {} {}", begin, end, offset, filename);
-    }
 
     // TODO: Store maps.
 
