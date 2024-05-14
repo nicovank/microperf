@@ -8,6 +8,7 @@
 #include <cstring>
 #include <deque>
 #include <fstream>
+#include <ranges>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -44,6 +45,19 @@ int perf_event_open_fallback_precise_ip(perf_event_attr* attr, pid_t pid, int cp
     return -1;
 }
 } // namespace
+
+// Split string on whitespace.
+std::vector<std::string_view> split(const std::string& s) {
+    std::vector<std::string_view> parts;
+    auto begin = std::find_if(s.begin(), s.end(), [](char c) { return !std::isspace(c); });
+    auto end = std::find_if(begin, s.end(), [](char c) { return std::isspace(c); });
+    while (begin != s.end()) {
+        parts.emplace_back(begin, end);
+        begin = std::find_if(end, s.end(), [](char c) { return !std::isspace(c); });
+        end = std::find_if(begin, s.end(), [](char c) { return std::isspace(c); });
+    }
+    return parts;
+}
 
 namespace perf::sample {
 std::size_t offset_for_sample_id(const perf_event_header* header, std::uint64_t sample_type) {
@@ -186,52 +200,6 @@ std::span<const std::uint64_t> get_ips(const perf_event_header* header, std::uin
 }
 } // namespace perf::sample
 
-// Returns true if the process should keep being tracked.
-bool process_samples(perf_event_mmap_page* metadata) {
-    const auto head = metadata->data_head;
-    // TODO: smp_rmb()?
-    const auto tail = metadata->data_tail;
-
-    while (metadata->data_tail < head) {
-        const auto* record
-            = reinterpret_cast<perf_event_header*>(reinterpret_cast<uintptr_t>(metadata) + metadata->data_offset
-                                                   + (metadata->data_tail % ((1 << N) * PAGE_SIZE)));
-
-        if (record->type == PERF_RECORD_EXIT) {
-            fmt::println("exit");
-            return false;
-        }
-
-        if (record->type == PERF_RECORD_SAMPLE) {
-            // fmt::println("{}, {}", record->type, record->size);
-            // fmt::println("{} {} {} {}", perf::sample::get_ip(record, attr.sample_type),
-            //              perf::sample::get_pid(record, attr.sample_type),
-            //              perf::sample::get_tid(record, attr.sample_type),
-            //              perf::sample::get_ips(record, attr.sample_type, attr.read_format));
-            // fmt::println("sample");
-        } else {
-            fmt::println("{}, {}", record->type, record->size);
-        }
-
-        metadata->data_tail += record->size;
-    }
-
-    return true;
-}
-
-// Split string on whitespace.
-std::vector<std::string_view> split(const std::string& s) {
-    std::vector<std::string_view> parts;
-    auto begin = std::find_if(s.begin(), s.end(), [](char c) { return !std::isspace(c); });
-    auto end = std::find_if(begin, s.end(), [](char c) { return std::isspace(c); });
-    while (begin != s.end()) {
-        parts.emplace_back(begin, end);
-        begin = std::find_if(end, s.end(), [](char c) { return !std::isspace(c); });
-        end = std::find_if(begin, s.end(), [](char c) { return std::isspace(c); });
-    }
-    return parts;
-}
-
 struct MapInfo {
     std::size_t begin;
     std::size_t end;
@@ -264,6 +232,62 @@ std::deque<MapInfo> getMaps(pid_t pid) {
                                .filename = std::string(v.at(5))});
     }
     return maps;
+}
+
+// Returns true if the process should keep being tracked.
+bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, const std::deque<MapInfo>& maps) {
+    const auto head = metadata->data_head;
+    // TODO: smp_rmb()?
+    const auto tail = metadata->data_tail;
+
+    while (metadata->data_tail < head) {
+        const auto* record
+            = reinterpret_cast<perf_event_header*>(reinterpret_cast<uintptr_t>(metadata) + metadata->data_offset
+                                                   + (metadata->data_tail % ((1 << N) * PAGE_SIZE)));
+
+        if (record->type == PERF_RECORD_EXIT) {
+            return false;
+        }
+
+        if (record->type == PERF_RECORD_SAMPLE) {
+            const auto ip = perf::sample::get_ip(record, sample_type);
+            auto found = false;
+            for (const auto& map : maps | std::views::reverse) {
+                if (map.begin <= ip && ip < map.end) {
+                    fmt::println("{:x} {}", ip - map.begin + map.offset, map.filename);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                fmt::println("[unknown]", ip);
+            }
+
+            fmt::println("----------");
+
+            for (const auto ip : perf::sample::get_ips(record, sample_type, 0)) {
+                auto found = false;
+                for (const auto& map : maps | std::views::reverse) {
+                    if (map.begin <= ip && ip < map.end) {
+                        fmt::println("{:x} {}", ip - map.begin + map.offset, map.filename);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    fmt::println("[unknown]", ip);
+                }
+            }
+
+            fmt::print("\n");
+        } else {
+            fmt::println("{}, {}", record->type, record->size);
+        }
+
+        metadata->data_tail += record->size;
+    }
+
+    return true;
 }
 
 int main(int argc, char** argv) {
@@ -338,7 +362,8 @@ int main(int argc, char** argv) {
             if (it->revents) {
                 auto jt = metadataByDescriptor.find(it->fd);
                 assert(jt != metadataByDescriptor.end());
-                if (process_samples(jt->second)) {
+                const auto& maps = mapsByDescriptor.at(it->fd);
+                if (process_samples(jt->second, attr.sample_type, maps)) {
                     ++it;
                 } else {
                     munmap(jt->second, ((1 << N) + 1) * PAGE_SIZE);
