@@ -239,8 +239,8 @@ struct MapInfo {
     std::string filename;
 };
 
-std::vector<MapInfo> getMaps(pid_t pid) {
-    std::vector<MapInfo> maps;
+std::deque<MapInfo> getMaps(pid_t pid) {
+    std::deque<MapInfo> maps;
     std::ifstream file(fmt::format("/proc/{}/maps", pid));
     std::string line;
     while (std::getline(file, line)) {
@@ -307,8 +307,9 @@ int main(int argc, char** argv) {
 
     std::vector<pollfd> fds;
     fds.push_back({.fd = fd, .events = POLL_IN, .revents = 0});
-
     std::unordered_map<int, perf_event_mmap_page*> metadataByDescriptor;
+    std::unordered_map<int, std::deque<MapInfo>> mapsByDescriptor;
+
     perf_event_mmap_page* metadata = static_cast<perf_event_mmap_page*>(
         mmap(nullptr, ((1 << N) + 1) * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
     if (metadata == MAP_FAILED) {
@@ -320,7 +321,7 @@ int main(int argc, char** argv) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
-    // TODO: Store maps.
+    mapsByDescriptor.emplace(fd, getMaps(pid));
 
     while (!fds.empty()) {
         const auto status = poll(fds.data(), fds.size(), 1000); // TODO Adjust timeout?
