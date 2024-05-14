@@ -1,8 +1,12 @@
+#include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <cerrno>
+#include <charconv>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -214,6 +218,19 @@ bool process_samples(perf_event_mmap_page* metadata) {
     return true;
 }
 
+// Split string on whitespace.
+std::vector<std::string_view> split(const std::string& s) {
+    std::vector<std::string_view> parts;
+    auto begin = std::find_if(s.begin(), s.end(), [](char c) { return !std::isspace(c); });
+    auto end = std::find_if(begin, s.end(), [](char c) { return std::isspace(c); });
+    while (begin != s.end()) {
+        parts.emplace_back(begin, end);
+        begin = std::find_if(end, s.end(), [](char c) { return !std::isspace(c); });
+        end = std::find_if(begin, s.end(), [](char c) { return std::isspace(c); });
+    }
+    return parts;
+}
+
 int main(int argc, char** argv) {
     // FIXME: For now, no options other than the command are passed.
     // FIXME: In the future, we should parse arguments and maybe isolate command with `---`.
@@ -268,7 +285,31 @@ int main(int argc, char** argv) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
-    // TODO: Read maps at this point.
+    std::ifstream maps(fmt::format("/proc/{}/maps", pid));
+    std::string line;
+    while (std::getline(maps, line)) {
+        const auto v = split(line);
+        if (v.at(1).at(2) != 'x' || v.size() != 6) {
+            continue;
+        }
+        const auto i = v.at(0).find('-');
+        assert(i != v.at(0).npos);
+
+        const auto hex_to_size_t = [](const std::string_view& s) {
+            std::size_t x;
+            const auto [ptr, ec] = std::from_chars(s.begin(), s.end(), x, 16);
+            assert(ptr == s.end() && ec == std::errc());
+            return x;
+        };
+
+        const auto begin = hex_to_size_t(v.at(0).substr(0, i));
+        const auto end = hex_to_size_t(v.at(0).substr(i + 1));
+        const auto offset = hex_to_size_t(v.at(2));
+        const auto filename = v.at(5);
+        fmt::println("{} {} {} {}", begin, end, offset, filename);
+    }
+
+    // TODO: Store maps.
 
     while (!fds.empty()) {
         const auto status = poll(fds.data(), fds.size(), 1000); // TODO Adjust timeout?
