@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <span>
+#include <unordered_map>
 #include <vector>
 
 #include <linux/hw_breakpoint.h>
@@ -180,6 +181,39 @@ std::span<const std::uint64_t> get_ips(const perf_event_header* header, std::uin
 }
 } // namespace perf::sample
 
+// Returns true if the process should keep being tracked.
+bool process_samples(perf_event_mmap_page* metadata) {
+    const auto head = metadata->data_head;
+    // TODO: smp_rmb()?
+    const auto tail = metadata->data_tail;
+
+    while (metadata->data_tail < head) {
+        const auto* record
+            = reinterpret_cast<perf_event_header*>(reinterpret_cast<uintptr_t>(metadata) + metadata->data_offset
+                                                   + (metadata->data_tail % ((1 << N) * PAGE_SIZE)));
+
+        if (record->type == PERF_RECORD_EXIT) {
+            fmt::println("exit");
+            return false;
+        }
+
+        if (record->type == PERF_RECORD_SAMPLE) {
+            // fmt::println("{}, {}", record->type, record->size);
+            // fmt::println("{} {} {} {}", perf::sample::get_ip(record, attr.sample_type),
+            //              perf::sample::get_pid(record, attr.sample_type),
+            //              perf::sample::get_tid(record, attr.sample_type),
+            //              perf::sample::get_ips(record, attr.sample_type, attr.read_format));
+            // fmt::println("sample");
+        } else {
+            fmt::println("{}, {}", record->type, record->size);
+        }
+
+        metadata->data_tail += record->size;
+    }
+
+    return true;
+}
+
 int main(int argc, char** argv) {
     // FIXME: For now, no options other than the command are passed.
     // FIXME: In the future, we should parse arguments and maybe isolate command with `---`.
@@ -222,59 +256,46 @@ int main(int argc, char** argv) {
     std::vector<pollfd> fds;
     fds.push_back({.fd = fd, .events = POLL_IN, .revents = 0});
 
-    auto* buffer = mmap(nullptr, ((1 << N) + 1) * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (buffer == MAP_FAILED) {
+    std::unordered_map<int, perf_event_mmap_page*> metadataByDescriptor;
+    perf_event_mmap_page* metadata = static_cast<perf_event_mmap_page*>(
+        mmap(nullptr, ((1 << N) + 1) * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+    if (metadata == MAP_FAILED) {
         fmt::println(stderr, "failed mmap: {}", std::strerror(errno));
         std::exit(EXIT_FAILURE);
     }
-    auto* metadata = static_cast<perf_event_mmap_page*>(buffer);
+    metadataByDescriptor.emplace(fd, metadata);
 
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
-    bool running = true;
-    while (running) {
-        const auto status = poll(fds.data(), fds.size(), 1000);
+    // TODO: Read maps at this point.
+
+    while (!fds.empty()) {
+        const auto status = poll(fds.data(), fds.size(), 1000); // TODO Adjust timeout?
         if (status == -1) {
             fmt::println(stderr, "failed poll: {}", std::strerror(errno));
             std::exit(EXIT_FAILURE);
         }
         if (status == 0) {
             fmt::println(stderr, "poll timeout");
-        } else {
-            const auto head = metadata->data_head;
-            // TODO: smp_rmb()?
-            const auto tail = metadata->data_tail;
-
-            int n = 0;
-            while (metadata->data_tail < head) {
-                const auto* record
-                    = reinterpret_cast<perf_event_header*>(reinterpret_cast<uintptr_t>(buffer) + metadata->data_offset
-                                                           + (metadata->data_tail % ((1 << N) * PAGE_SIZE)));
-
-                running = (record->type != PERF_RECORD_EXIT)
-                          || (pid
-                              != *reinterpret_cast<std::uint32_t*>(reinterpret_cast<uintptr_t>(record)
-                                                                   + sizeof(perf_event_header)));
-
-                if (record->type == PERF_RECORD_SAMPLE) {
-                    // fmt::println("{}, {}", record->type, record->size);
-                    // fmt::println("{} {} {} {}", perf::sample::get_ip(record, attr.sample_type),
-                    //              perf::sample::get_pid(record, attr.sample_type),
-                    //              perf::sample::get_tid(record, attr.sample_type),
-                    //              perf::sample::get_ips(record, attr.sample_type, attr.read_format));
-                } else {
-                    fmt::println("{}, {}", record->type, record->size);
-                }
-
-                metadata->data_tail += record->size;
-                ++n;
-            }
-            metadata->data_tail = head;
+            continue;
         }
-        // fmt::println("status: {}", status);
-    }
 
-    munmap(buffer, ((1 << N) + 1) * PAGE_SIZE);
-    close(fd);
+        for (auto it = fds.begin(); it != fds.end();) {
+            if (it->revents) {
+                auto jt = metadataByDescriptor.find(it->fd);
+                assert(jt != metadataByDescriptor.end());
+                if (process_samples(jt->second)) {
+                    ++it;
+                } else {
+                    munmap(jt->second, ((1 << N) + 1) * PAGE_SIZE);
+                    close(it->fd);
+                    it = fds.erase(it);
+                    metadataByDescriptor.erase(jt);
+                }
+            } else {
+                ++it;
+            }
+        }
+    }
 }
