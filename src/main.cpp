@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
-#include <filesystem>
 #include <fstream>
 #include <ranges>
 #include <span>
@@ -207,7 +206,6 @@ struct MapInfo {
     std::size_t end;
     std::size_t offset;
     std::string filename;
-    bool exists;
 };
 
 std::deque<MapInfo> getMaps(pid_t pid) {
@@ -232,14 +230,66 @@ std::deque<MapInfo> getMaps(pid_t pid) {
         maps.push_back(MapInfo{.begin = hex_to_size_t(v.at(0).substr(0, i)),
                                .end = hex_to_size_t(v.at(0).substr(i + 1)),
                                .offset = hex_to_size_t(v.at(2)),
-                               .filename = std::string(v.at(5)),
-                               .exists = std::filesystem::exists(v.at(5))});
+                               .filename = std::string(v.at(5))});
     }
     return maps;
 }
 
+std::string readline_fgets(FILE* file) {
+    std::string line;
+    while (true) {
+        char buffer[1024];
+        if (std::fgets(buffer, sizeof(buffer), file) == nullptr) {
+            fmt::println(stderr, "failed fgets: {}", std::strerror(errno));
+        }
+        line += buffer;
+        if (line.back() == '\n') {
+            line.pop_back();
+            break;
+        }
+    }
+    return line;
+}
+
+class Addr2LineProcessCollection {
+  public:
+    std::pair<std::string, std::string> getSymbolAndSourceLine(const std::string& filename, std::uint64_t ip) {
+        auto it = processes.find(filename);
+        if (it == processes.end()) {
+            return {"[unknown]", "[unknown]"};
+        }
+        if (it->second.poll() != -1) {
+            // Process has exited (file not found or other error).
+            // Maybe we should keep some count of sucessful queries and attempt to restart here.
+            processes.erase(it);
+            return {"[unknown]", "[unknown]"};
+        }
+        it->second.send(fmt::format("{:x}\n", ip));
+        auto symbol = readline_fgets(it->second.output());
+        if (symbol == "??") {
+            symbol = "[unknown]";
+        }
+        auto srcline = readline_fgets(it->second.output());
+        if (srcline == "??:0") {
+            srcline = "[unknown]";
+        }
+        return {std::move(symbol), std::move(srcline)};
+    }
+
+    // If a process already exists for that file, no new process will be spawned.
+    void openProcessForFile(const std::string& filename) {
+        processes.try_emplace(filename, fmt::format("llvm-addr2line-17 --functions --demangle --exe={}", filename),
+                              subprocess::input(subprocess::PIPE), subprocess::output(subprocess::PIPE),
+                              subprocess::error(subprocess::PIPE));
+    }
+
+  private:
+    std::unordered_map<std::string, subprocess::Popen> processes;
+};
+
 // Returns true if the process should keep being tracked.
-bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, const std::deque<MapInfo>& maps) {
+bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, const std::deque<MapInfo>& maps,
+                     Addr2LineProcessCollection& addr2lineProcesses) {
     const auto head = metadata->data_head;
     // TODO: smp_rmb()?
     const auto tail = metadata->data_tail;
@@ -258,13 +308,9 @@ bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, 
             auto found = false;
             for (const auto& map : maps | std::views::reverse) {
                 if (map.begin <= ip && ip < map.end) {
-                    if (!map.exists) {
-                        break;
-                    }
-
-                    const auto buffer = subprocess::check_output(
-                        {"llvm-addr2line-17", "-e", map.filename, fmt::format("{:x}", ip - map.begin + map.offset)});
-                    fmt::println("{}", std::string_view(buffer.buf.data(), buffer.length));
+                    const auto [symbol, srcline]
+                        = addr2lineProcesses.getSymbolAndSourceLine(map.filename, ip - map.begin + map.offset);
+                    fmt::println("{} {} {}", symbol, srcline, map.filename);
                     found = true;
                     break;
                 }
@@ -279,7 +325,9 @@ bool process_samples(perf_event_mmap_page* metadata, std::uint64_t sample_type, 
                 auto found = false;
                 for (const auto& map : maps | std::views::reverse) {
                     if (map.begin <= ip && ip < map.end) {
-                        fmt::println("0x{:x} {}", ip - map.begin + map.offset, map.filename);
+                        const auto [symbol, srcline]
+                            = addr2lineProcesses.getSymbolAndSourceLine(map.filename, ip - map.begin + map.offset);
+                        fmt::println("{} {} {}", symbol, srcline, map.filename);
                         found = true;
                         break;
                     }
@@ -343,6 +391,7 @@ int main(int argc, char** argv) {
     fds.push_back({.fd = fd, .events = POLL_IN, .revents = 0});
     std::unordered_map<int, perf_event_mmap_page*> metadataByDescriptor;
     std::unordered_map<int, std::deque<MapInfo>> mapsByDescriptor;
+    Addr2LineProcessCollection addr2lineProcesses;
 
     perf_event_mmap_page* metadata = static_cast<perf_event_mmap_page*>(
         mmap(nullptr, ((1 << N) + 1) * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
@@ -355,7 +404,10 @@ int main(int argc, char** argv) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
-    mapsByDescriptor.emplace(fd, getMaps(pid));
+    auto [it, _] = mapsByDescriptor.emplace(fd, getMaps(pid));
+    for (const auto& map : it->second) {
+        addr2lineProcesses.openProcessForFile(map.filename);
+    }
 
     while (!fds.empty()) {
         const auto status = poll(fds.data(), fds.size(), 1000); // TODO Adjust timeout?
@@ -373,7 +425,7 @@ int main(int argc, char** argv) {
                 auto jt = metadataByDescriptor.find(it->fd);
                 assert(jt != metadataByDescriptor.end());
                 const auto& maps = mapsByDescriptor.at(it->fd);
-                if (process_samples(jt->second, attr.sample_type, maps)) {
+                if (process_samples(jt->second, attr.sample_type, maps, addr2lineProcesses)) {
                     ++it;
                 } else {
                     munmap(jt->second, ((1 << N) + 1) * PAGE_SIZE);
