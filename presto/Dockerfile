@@ -1,8 +1,8 @@
-FROM alpine:3.17
+FROM alpine:3.20
 
 RUN apk add --no-cache less openjdk11-jre python3 wget
 
-ARG PRESTO_VERSION=0.282
+ARG PRESTO_VERSION=0.287
 ARG PRESTO_URL=https://repo1.maven.org/maven2/com/facebook/presto/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
 ARG PRESTO_CLI_URL=https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar
 
