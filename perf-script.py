@@ -15,6 +15,37 @@ def get_random_table_name():
     return "T" + hashlib.sha1(os.urandom(512)).hexdigest()
 
 
+def hack_remove_templates(symbol):
+    d = 0
+    i = 0
+    j = 0
+
+    symbol_characters = list(symbol)
+    while j < len(symbol_characters):
+        if (
+            symbol_characters[j] == "<"
+            and (j < 10 or symbol_characters[j - 10 : j] != "::operator")
+            and (j < 11 or symbol_characters[j - 11 : j] != "::operator<")
+        ):
+            d += 1
+        elif d > 0 and symbol_characters[j] == ">":
+            d -= 1
+        elif d == 0:
+            symbol_characters[i] = symbol_characters[j]
+            i += 1
+        j += 1
+
+    return "".join(symbol_characters[:i])
+
+
+def hack_remove_parameters(symbol):
+    return symbol.split("(")[0]
+
+
+def simplify(symbol):
+    return hack_remove_parameters(hack_remove_templates(symbol))
+
+
 class CLI:
     def __init__(self, args):
         self.args = args
@@ -57,7 +88,8 @@ class CLI:
         stack = []
         srclines = []
         for frame in reversed(event["callchain"]):
-            stack.append(frame.get("sym", {}).get("name", "[unknown]"))
+            symbol = simplify(frame.get("sym", {}).get("name", "[unknown]"))
+            stack.append(symbol)
             srcline = "[unknown]"
             if "sym_srcline" in frame:
                 # There is a colon in the path, but realpath will end up ignoring it.
