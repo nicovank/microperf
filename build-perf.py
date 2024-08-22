@@ -33,18 +33,14 @@ def main(args):
                 "--depth=1",
                 LINUX_URL,
                 LINUX_ROOT,
-            ],
-            stdout=(None if args.verbose else subprocess.DEVNULL),
-            stderr=(None if args.verbose else subprocess.DEVNULL),
+            ]
         ).check_returncode()
 
     if not os.path.isfile(os.path.join(INSTALL_PATH, "bin", "perf")):
         print("-- Building perf")
         subprocess.run(
             ["make", f"prefix={INSTALL_PATH}", "install"],
-            cwd=PERF_ROOT,
-            stdout=(None if args.verbose else subprocess.DEVNULL),
-            stderr=(None if args.verbose else subprocess.DEVNULL),
+            cwd=PERF_ROOT
         ).check_returncode()
     else:
         print("-- Using existing perf copy")
@@ -56,6 +52,5 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--clean", action="store_true", help="Clean up all files")
-    parser.add_argument("-v", "--verbose", action="store_true")
 
     main(parser.parse_args())
