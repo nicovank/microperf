@@ -15,6 +15,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Make sure pyproject.toml version matches release
+        run: |
+          tag=$(echo ${{ github.event.release.tag_name }} | sed 's/^v//')
+          version=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $tag does not match version $version in pyproject.toml"
+            exit 1
+          fi
+
+      # Build and publish Presto Docker image.
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          context: presto
+          platforms: linux/amd64
+          tags: nicovank/microperf-perf-presto:latest, nicovank/microperf-perf-presto:${{ github.event.release.tag_name }}
+
+      # Build and publish PyPI package.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
