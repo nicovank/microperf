@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:3
 
 RUN apk add --no-cache less openjdk11-jre python3 wget
 
@@ -16,4 +16,4 @@ RUN wget --quiet ${PRESTO_CLI_URL} -O /usr/local/bin/presto-cli
 RUN chmod +x /usr/local/bin/presto-cli
 
 EXPOSE 8080
-ENTRYPOINT /opt/presto-server/bin/launcher run
+ENTRYPOINT ["/opt/presto-server/bin/launcher", "run"]
