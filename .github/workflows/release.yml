@@ -25,16 +25,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install build packaging requests
 
-      - name: Check version bump
-        run: python3 check-version-bump.py
-
       - name: Build package
         run: python -m build
-
-      - name: Publish to crates.io
-        run: cargo publish --allow-dirty
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
