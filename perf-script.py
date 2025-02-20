@@ -6,7 +6,7 @@ import sys
 import prestodb
 
 
-# perf script -s perf-script.py -F+srcline --full-source-path --strip-cxx-templates
+# perf script -s perf-script.py -F+srcline --full-source-path
 
 BATCH_SIZE = 50
 
@@ -90,11 +90,7 @@ class CLI:
         for frame in reversed(event["callchain"]):
             symbol = simplify(frame.get("sym", {}).get("name", "[unknown]"))
             stack.append(symbol)
-            srcline = "[unknown]"
-            if "sym_srcline" in frame:
-                # There is a colon in the path, but realpath will end up ignoring it.
-                srcline = os.path.realpath(frame["sym_srcline"])
-            srclines.append(srcline)
+            srclines.append(frame.get("sym_srcline", "[unknown]"))
 
         self.batch.append(
             f"""(
