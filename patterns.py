@@ -36,7 +36,7 @@ def get_total_samples(cursor, args):
         f"""
         SELECT COUNT(*)
         FROM {args.table}
-        WHERE event = 'cycles'"""
+        """
     )
     return cursor.fetchone()[0]
 
@@ -65,8 +65,7 @@ def main(args):
                     stack,
                     x -> x LIKE 'std::_Rb_tree%') AS index
             FROM {args.table}
-            WHERE event = 'cycles'
-              AND CARDINALITY(stack) > 0
+            WHERE CARDINALITY(stack) > 0
         ), TEMPORARY2 AS (
             SELECT
                 SLICE(stack, 1, index) AS stack,
@@ -98,8 +97,7 @@ def main(args):
                     stack,
                     x -> x LIKE '%::operator=') AS index
             FROM {args.table}
-            WHERE event = 'cycles'
-                AND CARDINALITY(stack) > 0
+            WHERE CARDINALITY(stack) > 0
         ), TEMPORARY2 AS (
             SELECT
                 SLICE(stack, 1, index) AS stack,
@@ -115,8 +113,7 @@ def main(args):
                     x -> ELEMENT_AT(SPLIT(x, '::'), -1) = ELEMENT_AT(SPLIT(x, '::'), -2))
                 AS index
             FROM {args.table}
-            WHERE event = 'cycles'
-                AND CARDINALITY(stack) > 0
+            WHERE CARDINALITY(stack) > 0
         ), TEMPORARY4 AS (
             SELECT
                 SLICE(stack, 1, index) AS stack,
