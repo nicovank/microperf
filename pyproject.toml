@@ -18,6 +18,9 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 
+[project.scripts]
+cwhy = "cwhy.__main__:main"
+
 [project.urls]
 "Homepage" = "https://github.com/nicovank/microperf"
 "Bug Tracker" = "https://github.com/nicovank/microperf/issues"
