@@ -1,4 +1,7 @@
-# MicroPerf
+# microperf
+
+[![PyPI](https://img.shields.io/pypi/v/microperf.svg)](https://pypi.org/project/microperf/)
+[![downloads](https://static.pepy.tech/badge/microperf)](https://pepy.tech/project/microperf)
 
 > **Warning**
 > This is a work in progress.
