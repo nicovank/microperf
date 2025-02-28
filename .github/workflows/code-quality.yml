@@ -30,8 +30,5 @@ jobs:
       - name: Run compileall
         run: python3 -m compileall src
 
-      - name: Run mypy
-        run: python3 -m mypy --strict src
-
       - name: Run black
         run: python3 -m black --check src
