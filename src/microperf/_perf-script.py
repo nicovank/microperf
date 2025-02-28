@@ -2,8 +2,9 @@ import argparse
 import hashlib
 import os
 import sys
+from typing import Any
 
-import prestodb
+import prestodb  # type: ignore
 
 
 # perf script -s perf-script.py -F+srcline --full-source-path
@@ -11,11 +12,11 @@ import prestodb
 BATCH_SIZE = 50
 
 
-def get_random_table_name():
+def get_random_table_name() -> str:
     return "T" + hashlib.sha1(os.urandom(512)).hexdigest()
 
 
-def hack_remove_templates(symbol):
+def hack_remove_templates(symbol: str) -> str:
     d = 0
     i = 0
     j = 0
@@ -38,22 +39,22 @@ def hack_remove_templates(symbol):
     return "".join(symbol_characters[:i])
 
 
-def hack_remove_parameters(symbol):
+def hack_remove_parameters(symbol: str) -> str:
     return symbol.split("(")[0]
 
 
-def simplify(symbol):
+def simplify(symbol: str) -> str:
     return hack_remove_parameters(hack_remove_templates(symbol))
 
 
 class CLI:
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace):
         self.args = args
 
         if self.args.table is None:
             self.args.table = get_random_table_name()
 
-    def trace_begin(self):
+    def trace_begin(self) -> None:
         connection = prestodb.dbapi.connect(
             host=self.args.host,
             port=self.args.port,
@@ -82,7 +83,7 @@ class CLI:
         self.count = 0
         self.batch = []
 
-    def process_event(self, event):
+    def process_event(self, event: dict[str, Any]) -> None:
         assert "callchain" in event
 
         stack = []
@@ -109,13 +110,13 @@ class CLI:
             self.__batch()
             print(f"Processed {self.count} rows")
 
-    def trace_end(self):
+    def trace_end(self) -> None:
         if len(self.batch) > 0:
             self.__batch()
         self.cursor.close()
         print(f"Inserted {self.count} rows into {self.args.table}")
 
-    def __batch(self):
+    def __batch(self) -> None:
         self.cursor.execute(
             f"INSERT INTO {self.args.table} VALUES {','.join(self.batch)}"
         )

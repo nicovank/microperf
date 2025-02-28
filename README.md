@@ -9,7 +9,7 @@ making it then easier to query for specific patterns or code smells.
 
 ## Usage
 
-### Generating a Profile
+### Generating a profile
 
 First, note that your executable should be compiled with debug symbols (`-g`,
 `-DCMAKE_BUILD_TYPE=RelWithDebInfo`, ...).
@@ -24,18 +24,15 @@ Alternatively, `microperf perf` provides a convenience passthrough to `perf`.
 This can be useful when a different `perf` executable should be used (see
 `MICROPERF_PERF_EXE` option below).
 
+### Running the Patterns analyzer
+
+I've written a couple queries to identify common bad patterns. At time of this
+writing, this includes cycles spent in:
+ 1. tree-based structures (`std::map`, `std::set`): these can often be replaced
+    with hash-based data structures.
+ 2. constructors: these are often signs of excessive copying.
+
 ## Options
 
 The environment variable `MICROPERF_PERF_EXE` can be set to the path of a `perf`
 executable to be used instead of the default `perf` command.
-
-## Presto
-
-A Docker image is provided to run Presto with this suite of tools.
-It differs slightly from the official image, for example removing the `-Xmx1G`
-JVM flag to allow processing of larger profiles.
-
-```
-% docker image build microperf/presto --compress --tag perf-presto
-% docker run -d -p 8080:8080 --name perf-presto perf-presto
-```
