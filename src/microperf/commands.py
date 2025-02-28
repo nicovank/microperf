@@ -96,6 +96,7 @@ def clean(args: argparse.Namespace) -> None:
         except docker.errors.NotFound:
             print(f"Image {IMAGE_NAME} not found.")
 
+
 def patterns(args: argparse.Namespace) -> None:
     connection = prestodb.dbapi.connect(
         host="localhost",
