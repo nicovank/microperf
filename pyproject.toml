@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 [project.scripts]
-cwhy = "cwhy.__main__:main"
+microperf = "microperf.__main__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/nicovank/microperf"
