@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "microperf"
-version = "0.1.7"
+version = "1.0.0"
 authors = [
   { name="Nicolas van Kempen", email="nvankemp@gmail.com" },
 ]
