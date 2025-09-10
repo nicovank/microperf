@@ -60,7 +60,7 @@ def main() -> None:
     patterns_subparser = subparsers.add_parser(
         "patterns",
         help="runs bad-pattern-idenfying queries",
-        description="Runs bad-pattern-idenfying queries.",
+        description="Runs bad-pattern-identifying queries.",
     )
     patterns_subparser.add_argument("table", help="name of the table")
     patterns_subparser.set_defaults(func=commands.patterns)
