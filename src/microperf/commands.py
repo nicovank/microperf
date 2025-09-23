@@ -47,7 +47,11 @@ def process(args: argparse.Namespace) -> None:
 
     print("Checking that the container exists...")
     try:
-        client.containers.get(CONTAINER_NAME)
+        container = client.containers.get(CONTAINER_NAME)
+        if container.status != "running":
+            print("Container exists but has exited.")
+            print("Try `microperf clean` first.")
+            exit(1)
     except docker.errors.NotFound:
         print("Container not found. Downloading and starting it...")
         client.images.pull(TAGGED_IMAGE_NAME)
@@ -59,8 +63,8 @@ def process(args: argparse.Namespace) -> None:
         )
 
         # TODO: Ideally we would periodically poll and check if ready.
-        print("Giving Presto 10 seconds to initialize...")
-        time.sleep(10)
+        print("Giving Presto 30 seconds to initialize...")
+        time.sleep(30)
 
     print(f"Processing {args.input}...")
     subprocess.run(
