@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build packaging requests
+          pip install build
 
       - name: Build package
         run: python -m build
